@@ -1,8 +1,31 @@
 import express from "express";
+import { query, validationResult } from 'express-validator';
 
 const app = express();
 
 app.use(express.json());
+
+const resolveIndexByUserId = (req, res, next) => {
+    const { params: { id } } = req;
+    const parseId = parseInt(id);
+    if (isNaN(parseId)) return res.sendStatus(400);
+    const findIndex = mockUsers.findIndex((user) => user.id === parseId);
+    if (findIndex === -1) return res.sendStatus(404);
+    req.findIndex = findIndex;
+    next();
+};
+
+const processUpdate = (req, res, next) => {
+    console.log(`${req.method} - ${req.url}`);
+    next()
+};
+
+app.get('/', (req, res, next) => {
+    console.log('base url')
+    next();
+}, (req, res) => {
+    res.send(mockUsers);
+});
 
 const mockUsers = [
     { id: 1, name: 'vishnu', age: 30 },
@@ -13,15 +36,18 @@ const mockUsers = [
     { id: 5, name: 'sheeba', age: 57, place: 'iringal' },
 ];
 
-app.get("/", (req, res) => {
+app.get("/api/users", query("filter").isString().notEmpty().isLength({min:3,max:10}).withMessage("must be in the range"), (req, res) => {
+    // console.log(req["express-validator#contexts"])
+    const result = validationResult(req);
+    console.log(result);
     const { query: { filter, value } } = req;
     if (filter && value) {
         const validFilters = ['id', 'name', 'age', 'place'];
         if (validFilters.includes(filter)) {
             const filteredMockUsers = mockUsers.filter((user) => {
-                return user[filter]&&user[filter] === value;
+                return user[filter] && user[filter] === value;
             });
-            if(filteredMockUsers.length>0){
+            if (filteredMockUsers.length > 0) {
                 return res.send(filteredMockUsers);
             } else {
                 return res.send("the entered filter and value is not in the list");
@@ -31,54 +57,35 @@ app.get("/", (req, res) => {
     res.send(mockUsers)
 });
 
-app.get("/:id", (req, res) => {
-    const parseId = parseInt(req.params.id);
-    if (parseId) {
-        const findId = mockUsers.find((user) => user.id === parseId);
-        if (findId) {
-            res.send(findId);
-        } else {
-            res.status(404).send({ message: 'invalid id' })
-        }
+app.use(processUpdate);
 
-    } else {
-        res.status(404).send({ message: "user not found" });
-    }
+app.get("/api/users/:id", resolveIndexByUserId, (req, res) => {
+    const {findIndex} = req;
+    const findElement = mockUsers[findIndex];
+    return res.send(findElement);
 });
 
-app.post('/', (req, res) => {
+app.post('/api/users', (req, res) => {
     const { body } = req;
     const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...body };
     mockUsers.push(newUser);
     res.send(mockUsers);
 })
 
-app.put("/:id", (req,res) => {
-    const {body, params:{id}} = req;
-    const parseId = parseInt(id);
-    if(isNaN(parseId)) return res.sendStatus(400);
-    const findIndex = mockUsers.findIndex((user) => user.id === parseId);
-    if(findIndex === -1) return res.sendStatus(404);
-    mockUsers[findIndex] = {id:parseId, ...body};
+app.put("/api/users/:id", resolveIndexByUserId, (req, res) => {
+    const { body, findIndex } = req;
+    mockUsers[findIndex] = { id: mockUsers[findIndex].id, ...body };
     return res.sendStatus(200);
 });
 
-app.patch("/:id", (req,res) => {
-    const {body, params:{id}} = req;
-    const parseId = parseInt(id);
-    if(isNaN(parseId)) return res.sendStatus(404);
-    const findIndex = mockUsers.findIndex((user) => user.id === parseId);
-    if(findIndex === -1) return res.sendStatus(400);
-    mockUsers[findIndex] = {...mockUsers[findIndex], ...body};
+app.patch("/api/users/:id", resolveIndexByUserId, (req, res) => {
+    const {body, findIndex} = req;
+    mockUsers[findIndex] = { ...mockUsers[findIndex], ...body };
     return res.sendStatus(200);
 });
 
-app.delete("/:id", (req,res) => {
-    const {params:{id}} = req;
-    const paraseId = parseInt(id);
-    if(isNaN(paraseId)) return res.sendStatus(400);
-    const findIndex = mockUsers.findIndex((user) => user.id === paraseId);
-    if(findIndex === -1) return res.sendStatus(404);
+app.delete("/api/users/:id", (req, res) => {
+    const {findIndex} = req;
     mockUsers.splice(findIndex, 1);
     return res.sendStatus(200);
 });
