@@ -1,5 +1,5 @@
 import express from "express";
-import { query, validationResult } from 'express-validator';
+import { query, validationResult, body } from 'express-validator';
 
 const app = express();
 
@@ -20,7 +20,13 @@ const processUpdate = (req, res, next) => {
     next()
 };
 
-app.get('/', (req, res, next) => {
+app.get('/', query("filter")
+    .isString().withMessage("query must be a string")
+    .notEmpty().withMessage("query cannot be empty")
+    .isLength({ min: 3, max: 10 }).withMessage("query must be in the range"), 
+    (req, res, next) => {
+    const result = validationResult(req);
+    console.log(result);
     console.log('base url')
     next();
 }, (req, res) => {
@@ -36,7 +42,7 @@ const mockUsers = [
     { id: 5, name: 'sheeba', age: 57, place: 'iringal' },
 ];
 
-app.get("/api/users", query("filter").isString().notEmpty().isLength({min:3,max:10}).withMessage("must be in the range"), (req, res) => {
+app.get("/api/users", query("filter").isString().notEmpty().withMessage("query cannot be empty").isLength({ min: 3, max: 10 }).withMessage("must be in the range"), (req, res) => {
     // console.log(req["express-validator#contexts"])
     const result = validationResult(req);
     console.log(result);
@@ -60,16 +66,23 @@ app.get("/api/users", query("filter").isString().notEmpty().isLength({min:3,max:
 app.use(processUpdate);
 
 app.get("/api/users/:id", resolveIndexByUserId, (req, res) => {
-    const {findIndex} = req;
+    const { findIndex } = req;
     const findElement = mockUsers[findIndex];
     return res.send(findElement);
 });
 
-app.post('/api/users', (req, res) => {
-    const { body } = req;
-    const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...body };
-    mockUsers.push(newUser);
-    res.send(mockUsers);
+app.post('/api/users',
+    body("name")
+    .isString().withMessage("name must be a string")
+    .notEmpty().withMessage("name cannot be empty")
+    .isLength({min:5, max:10}).withMessage("username must be in between 5 and 10 charecters"),
+    (req, res) => {
+        const result = validationResult(req);
+        console.log(result);
+        const { body } = req;
+        const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...body };
+        mockUsers.push(newUser);
+        res.send(mockUsers);
 })
 
 app.put("/api/users/:id", resolveIndexByUserId, (req, res) => {
@@ -79,13 +92,13 @@ app.put("/api/users/:id", resolveIndexByUserId, (req, res) => {
 });
 
 app.patch("/api/users/:id", resolveIndexByUserId, (req, res) => {
-    const {body, findIndex} = req;
+    const { body, findIndex } = req;
     mockUsers[findIndex] = { ...mockUsers[findIndex], ...body };
     return res.sendStatus(200);
 });
 
 app.delete("/api/users/:id", (req, res) => {
-    const {findIndex} = req;
+    const { findIndex } = req;
     mockUsers.splice(findIndex, 1);
     return res.sendStatus(200);
 });
