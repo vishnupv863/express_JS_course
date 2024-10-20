@@ -1,5 +1,5 @@
 import express from "express";
-import { query, validationResult, body } from 'express-validator';
+import { query, validationResult, body, matchedData, checkSchema } from 'express-validator';
 
 const app = express();
 
@@ -23,15 +23,15 @@ const processUpdate = (req, res, next) => {
 app.get('/', query("filter")
     .isString().withMessage("query must be a string")
     .notEmpty().withMessage("query cannot be empty")
-    .isLength({ min: 3, max: 10 }).withMessage("query must be in the range"), 
+    .isLength({ min: 3, max: 10 }).withMessage("query must be in the range"),
     (req, res, next) => {
-    const result = validationResult(req);
-    console.log(result);
-    console.log('base url')
-    next();
-}, (req, res) => {
-    res.send(mockUsers);
-});
+        const result = validationResult(req);
+        console.log(result);
+        console.log('base url')
+        next();
+    }, (req, res) => {
+        res.send(mockUsers);
+    });
 
 const mockUsers = [
     { id: 1, name: 'vishnu', age: 30 },
@@ -71,19 +71,23 @@ app.get("/api/users/:id", resolveIndexByUserId, (req, res) => {
     return res.send(findElement);
 });
 
-app.post('/api/users',
-    body("name")
-    .isString().withMessage("name must be a string")
-    .notEmpty().withMessage("name cannot be empty")
-    .isLength({min:5, max:10}).withMessage("username must be in between 5 and 10 charecters"),
+import { bodyValidator } from './utils/scemaValidation.mjs'
+
+app.post('/api/users', checkSchema(bodyValidator),
+
     (req, res) => {
         const result = validationResult(req);
         console.log(result);
+        if (!result.isEmpty()) {
+            return res.status(404).send({ errors: result.array() });
+        }
+        const data = matchedData(req);
+        console.log(data)
         const { body } = req;
-        const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...body };
+        const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...data };
         mockUsers.push(newUser);
         res.send(mockUsers);
-})
+    })
 
 app.put("/api/users/:id", resolveIndexByUserId, (req, res) => {
     const { body, findIndex } = req;
