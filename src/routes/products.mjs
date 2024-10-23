@@ -12,7 +12,14 @@ const products = [
 router.get("/api/products", (req, res) => {
     console.log(req.headers.cookie)
     console.log(req.cookies); 
-    if (req.cookies.hello && req.cookies.hello === "world")
+    req.sessionStore.get(req.sessionID, (err, sessionData) => {
+        if(err) {
+            console.log(err);
+            throw err;
+        }
+        console.log(sessionData)
+    });
+    if (req.signedCookies.hello && req.signedCookies.hello === "world")
         return res.status(201).send(products);
     return res.send({ message: "sorry you need cookies" })
 
